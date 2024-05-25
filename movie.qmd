@@ -1,6 +1,6 @@
 ---
-title: "Top 50 Movies by Rotten Tomatoes"
-subtitle: "`rvest`ing data from websites and using `gt` to display the Top 50 Movies by Rotten Tomatoes along with respective Critic Scores and IMDb Ratings"
+title: "Ha`rvest` Rotten Tomatoes"
+subtitle: "Top 50 Movies of all time along with Critic Scores and IMDb Ratings"
 author: "Sukalpo Saha"
 date: today
 format:
@@ -26,18 +26,24 @@ editor: visual
 .cell-output-display:not(.no-overflow-x), .knitsql-table:not(.no-overflow-x) {
     overflow-x: auto;
     width: max-content;
+    height: auto;
 }
 
 #title-block-header.quarto-title-block.default .quarto-title .title {
     color: tomato;
+    font-weight: bold;
 }
 
 p.subtitle {
-    color: orange;
+    color: #fdde55;
 }
 
 #title-block-header.quarto-title-block.default .quarto-title-meta {
     color: tomato;
+}
+
+#quarto-code-tools-source > i {
+    color: tomato !important;
 }
 
 code {
@@ -58,6 +64,7 @@ library(gtExtras)
 
 ```{r}
 ## Create functions to scrape movie related information from Rotten Tomatoes and IMDb
+### Movie Poster urls
 get_img_src <- function(pg) {
   pg |>
     html_elements("a > div > img") |>
@@ -65,7 +72,7 @@ get_img_src <- function(pg) {
     keep(\(x) x[["class"]] == "article_poster") |>
     map_chr(\(x) x[["src"]])
 }
-
+### Director Names
 get_dir_names <- function(pg) {
   pg |>
     html_elements("div.info.director") |>
@@ -73,14 +80,14 @@ get_dir_names <- function(pg) {
     str_remove(pattern = "Directed By: ") |>
     str_replace_all(" ", "_")
 }
-
+### Movie Cast
 get_cast <- function(pg) {
   pg |>
     html_elements("div.info.cast") |>
     html_text2() |>
     str_remove(pattern = "Starring: ")
 }
-
+### IMDb movie ratings
 get_imdb_movies <- function(pg) {
   name <- pg |>
     html_elements(".ipc-title__text") |>
@@ -110,6 +117,7 @@ imdb <- "https://www.imdb.com/chart/top/"
 html <- map(c(rot, imdb), read_html) |>
   set_names("tomato", "imdb")
 
+### clean scraped data
 rt <- html$tomato |>
   html_elements("table") |>
   html_table() |>
@@ -121,7 +129,7 @@ rt <- html$tomato |>
   separate_wider_delim(name, delim = " (", names = c("name", "year")) |>
   mutate(year = str_extract(year, "\\d+")) |>
   mutate(across(c(1, 2, 4), as.numeric)) |>
-  ### add IMDb top 250 to Rotten Tomatoes Top 50
+  ### add IMDb top 250 to Rotten Tomatoes Top 100
   left_join(get_imdb_movies(html$imdb), by = "name")
 
 ### add rotten tomatoes movie posters and movie details
@@ -146,20 +154,22 @@ rt |>
   text_transform(
     locations = cells_body(columns = imdb),
     fn = \(x) {
-      num_x <- suppressWarnings(as.numeric(x))
-      map(num_x, \(rating) {
-        if (gtExtras:::is_blank(rating) || rating %in% c(NA, "NA", "")) {
-          return(html("Outside Top 250"))
+      map(suppressWarnings(as.numeric(x)), \(rating) {
+        if (is.na(rating)) {
+          return(html("Outside IMDb Top 250"))
         }
         rounded_rating <- floor(rating + 0.5)
-        stars <- map(seq_len(10), \(i) {
-          if (i <= rounded_rating) {
-            fontawesome::fa("star", fill = "orange", width = "14px", height = "14px", a11y = "sem", prefer_type = "solid")
-          } else {
-            fontawesome::fa("star", fill = "grey", width = "14px", height = "14px", a11y = "sem")
-          }
-        })
         label <- sprintf("%s out of %s", rating, 10)
+        stars <- map(seq_len(10), \(i) {
+          fontawesome::fa(
+              "star",
+              fill = "orange",
+              width = "14px",
+              height = "14px",
+              title = label,
+              prefer_type = if_else(i <= rounded_rating, "solid", "regular")
+            )
+        })
         htmltools::div(
           title = label,
           "aria-label" = label,
@@ -175,8 +185,7 @@ rt |>
   cols_align(align = "left", columns = imdb) |>
   cols_width(
     rank ~ px(25),
-    logo ~ px(180),
-    c("name", "dir", "cast") ~ px(180),
+    c("logo", "name", "dir", "cast") ~ px(180),
     imdb ~ px(200),
     everything() ~ px(100)
   ) |>
@@ -190,7 +199,7 @@ rt |>
     "logo" ~ "",
     "name" ~ "Movie",
     "score" ~ with_tooltip(
-      html(local_image(filename = "apple.png", height = 25)),
+      html(local_image(filename = "apple.png", height = 22)),
       "Critic Score"
     ),
     "dir" ~ "Directed By",
@@ -266,6 +275,9 @@ rt |>
     }
     abbr > img {
        vertical-align: -0.45em !important;
+    }
+    abbr[title], abbr[data-bs-original-title] {
+      cursor: pointer;
     }
     tr > td > img {
        border-radius: 8px !important;
