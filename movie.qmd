@@ -1,11 +1,13 @@
 ---
 title: "Ha`rvest` Rotten Tomatoes"
-subtitle: "Top 50 Movies of all time along with Critic Scores and IMDb Ratings"
+subtitle: "Top 50 Movies of all time along with Critic Score and IMDb (Internet Movie Database) Ratings"
+description: Movie related information was scraped from <a href="https://editorial.rottentomatoes.com/guide/best-movies-of-all-time/">Rotten Tomatoes</a> and <a href="https://www.imdb.com/chart/top/">IMDb</a> respectively using <a href="https://github.com/tidyverse/rvest/">rvest</a>.
 author: "Sukalpo Saha"
 date: today
 format:
   html:
     theme: slate
+    smooth-scroll: true
     code-fold: true
     code-tools:
       source: true
@@ -18,6 +20,7 @@ knitr:
     comment: "#>"
     message: false
     warning: false
+title-block-style: default
 title-block-banner: true
 editor: visual
 ---
@@ -42,6 +45,10 @@ p.subtitle {
     color: tomato;
 }
 
+#title-block-header > div.quarto-title-banner.page-columns.page-full > div > div > div > a {
+    color: orange !important;
+}
+
 #quarto-code-tools-source > i {
     color: tomato !important;
 }
@@ -50,6 +57,7 @@ code {
    color: #597 !important;
 }
 ```
+
 
 ```{r}
 ## Load required packages
@@ -63,7 +71,8 @@ library(gtExtras)
 ```
 
 ```{r}
-## Create functions to scrape movie related information from Rotten Tomatoes and IMDb
+## Create functions to scrape movie related information from Rotten Tomatoes
+## and IMDb
 ### Movie Poster urls
 get_img_src <- function(pg) {
   pg |>
@@ -99,7 +108,9 @@ get_imdb_movies <- function(pg) {
     html_text2()
 
   ratings <-
-    map_chr(seq(4, by = 4, length.out = length(ratings) / 4), \(x) ratings[x]) |>
+    map_chr(
+      seq(4, by = 4, length.out = length(ratings) / 4), \(x) ratings[x]
+    ) |>
     str_sub(1, 3) |>
     as.numeric()
 
