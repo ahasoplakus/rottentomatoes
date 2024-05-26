@@ -38,7 +38,7 @@ editor: visual
 }
 
 p.subtitle {
-    color: #fdde55;
+    color: #f5ca09;
 }
 
 #title-block-header.quarto-title-block.default .quarto-title-meta {
@@ -221,14 +221,22 @@ rt |>
       "IMDb Ratings"
     )
   ) |>
+  tab_header(
+    title = html(local_image("rtom.png", height = 100)),
+    subtitle = "Top 50 Movies of All Time"
+  ) |>
   tab_style(
     style = cell_text(
       align = "center",
       font = google_font("Chivo"),
-      color = "#fdde55",
+      color = "#eb2727",
       weight = "bold"
     ),
     locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(color = "#f5ca09", font = "fantasy"),
+    locations = cells_title()
   ) |>
   tab_style(
     style = cell_text(align = "right"),
@@ -259,15 +267,19 @@ rt |>
     locations = cells_body(columns = imdb)
   ) |>
   tab_style(
-    style = cell_text(color = "#fdde55", font = google_font("Poppins")),
+    style = cell_text(color = "#f5ca09", font = google_font("Poppins")),
     locations = cells_row_groups()
   ) |>
   tab_style(
-    style = cell_fill(color = "#a91d3a"),
+    style = cell_fill(color = "#eb2727"),
+    locations = cells_title()
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#f5ca09"),
     locations = cells_column_labels()
   ) |>
   tab_style(
-    style = cell_borders(color = "#a91d3a", sides = "bottom", weight = px(2)),
+    style = cell_borders(color = "#597e52", sides = "bottom", weight = px(2)),
     locations = cells_column_labels()
   ) |>
   opt_table_outline(color = "#597e52") |>
@@ -277,12 +289,20 @@ rt |>
     row_group.font.size = 18,
     row_group.border.bottom.style = "hidden",
     row_group.border.top.color = "#597e52",
-    column_labels.font.size = 20
+    column_labels.font.size = 20,
+    heading.subtitle.font.size = 22,
+    heading.border.bottom.color = "#eb2727"
   ) |>
   opt_css(
     css = "
     .gt_table {
       width: max-content !important;
+    }
+    .gt_title {
+       padding-bottom: 0px !important;
+    }
+    .gt_subtitle {
+       padding-top: 0px !important;
     }
     abbr > img {
        vertical-align: -0.45em !important;
