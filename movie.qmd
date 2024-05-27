@@ -1,6 +1,6 @@
 ---
 title: "Ha`rvest` Rotten Tomatoes"
-subtitle: "Top 50 Movies of all time along with Critic Score and IMDb (Internet Movie Database) Ratings"
+subtitle: "Best (Top 50) Movies of all time as reviewed and selected by Tomatometer-approved critics and Rotten Tomatoes users, along with IMDb (Internet Movie Database) Ratings"
 description: Movie related information was scraped from <a href="https://editorial.rottentomatoes.com/guide/best-movies-of-all-time/">Rotten Tomatoes</a> and <a href="https://www.imdb.com/chart/top/">IMDb</a> respectively using <a href="https://github.com/tidyverse/rvest/">rvest</a>.
 author: "Sukalpo Saha"
 date: today
@@ -33,7 +33,7 @@ editor: visual
 }
 
 #title-block-header.quarto-title-block.default .quarto-title .title {
-    color: tomato;
+    color: #eb2727;
     font-weight: bold;
 }
 
@@ -42,15 +42,15 @@ p.subtitle {
 }
 
 #title-block-header.quarto-title-block.default .quarto-title-meta {
-    color: tomato;
+    color: #eb2727;
 }
 
 #title-block-header > div.quarto-title-banner.page-columns.page-full > div > div > div > a {
-    color: orange !important;
+    color: coral !important;
 }
 
 #quarto-code-tools-source > i {
-    color: tomato !important;
+    color: #eb2727 !important;
 }
 
 code {
@@ -73,7 +73,7 @@ library(gtExtras)
 ```{r}
 ## Create functions to scrape movie related information from Rotten Tomatoes
 ## and IMDb
-### Movie Poster urls
+### Extract Movie Posters
 get_img_src <- function(pg) {
   pg |>
     html_elements("a > div > img") |>
@@ -81,20 +81,12 @@ get_img_src <- function(pg) {
     keep(\(x) x[["class"]] == "article_poster") |>
     map_chr(\(x) x[["src"]])
 }
-### Director Names
-get_dir_names <- function(pg) {
+### Extract movie info from Rotten Tomatoes
+get_movie_info <- function(pg, tag, str_remove) {
   pg |>
-    html_elements("div.info.director") |>
+    html_elements(tag) |>
     html_text2() |>
-    str_remove(pattern = "Directed By: ") |>
-    str_replace_all(" ", "_")
-}
-### Movie Cast
-get_cast <- function(pg) {
-  pg |>
-    html_elements("div.info.cast") |>
-    html_text2() |>
-    str_remove(pattern = "Starring: ")
+    str_remove(pattern = str_remove)
 }
 ### IMDb movie ratings
 get_imdb_movies <- function(pg) {
@@ -147,8 +139,13 @@ rt <- html$tomato |>
 rt <- rt |>
   mutate(logo = get_img_src(html$tomato), .after = "rank") |>
   mutate(
-    dir = str_replace_all(get_dir_names(html$tomato), "_", " "),
-    cast = get_cast(html$tomato),
+    dir = get_movie_info(html$tomato, "div.info.director", "Directed By: "),
+    cast = get_movie_info(html$tomato, "div.info.cast", "Starring: "),
+    cc = get_movie_info(
+      html$tomato,
+      "div.info.critics-consensus",
+      "Critics Consensus: "
+    ),
     .after = "name"
   )
 ```
@@ -158,8 +155,12 @@ rt <- rt |>
 rt |>
   gt(groupname_col = "rank") |>
   text_transform(
+    locations = cells_row_groups(),
+    fn = \(x) paste0("#", x)
+  ) |>
+  text_transform(
     locations = cells_body(columns = logo),
-    fn = \(x) web_image(url = x, height = 175)
+    fn = \(x) web_image(url = x, height = 150)
   ) |>
   fmt_pct_extra(columns = score) |>
   text_transform(
@@ -197,6 +198,7 @@ rt |>
   cols_width(
     rank ~ px(25),
     c("logo", "name", "dir", "cast") ~ px(180),
+    cc ~ px(250),
     imdb ~ px(200),
     everything() ~ px(100)
   ) |>
@@ -209,12 +211,14 @@ rt |>
     "rank" ~ "",
     "logo" ~ "",
     "name" ~ "Movie",
-    "score" ~ with_tooltip(
-      html(local_image(filename = "apple.png", height = 22)),
-      "Critic Score"
-    ),
+    "score" ~ html(as.character(htmltools::tags$abbr(
+      style = "cursor: pointer; background-color: #eb2727;",
+      title = "Critic Score: Movie’s Tomatometer Rating with assistance from its Audience Score to represent sentiment from both sides. Other factors considered in calculating this score are: Number of Critics Reviews, Number of Audience Score votes, and its year of release.",
+    html(local_image(filename = "apple.png", height = 25))
+    ))),
     "dir" ~ "Directed By",
     "cast" ~ "Starring",
+    "cc" ~ "Critics Consensus",
     "year" ~ "Year",
     "imdb" ~ with_tooltip(
       html(local_image(filename = "imdb.png", height = 20)),
@@ -223,7 +227,7 @@ rt |>
   ) |>
   tab_header(
     title = html(local_image("rtom.png", height = 100)),
-    subtitle = "Top 50 Movies of All Time"
+    subtitle = "Best Movies of All Time (Top 50)"
   ) |>
   tab_style(
     style = cell_text(
@@ -235,7 +239,7 @@ rt |>
     locations = cells_column_labels()
   ) |>
   tab_style(
-    style = cell_text(color = "#f5ca09", font = "fantasy"),
+    style = cell_text(color = "#3ce906", font = "cursive", weight = 600),
     locations = cells_title()
   ) |>
   tab_style(
@@ -305,10 +309,7 @@ rt |>
        padding-top: 0px !important;
     }
     abbr > img {
-       vertical-align: -0.45em !important;
-    }
-    abbr[title], abbr[data-bs-original-title] {
-      cursor: pointer;
+       vertical-align: -0.3em !important;
     }
     tr > td > img {
        border-radius: 8px !important;
