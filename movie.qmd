@@ -1,12 +1,12 @@
 ---
-title: "Ha`rvest` Rotten Tomatoes"
-subtitle: "Best (Top 50) Movies of all time as reviewed and selected by Tomatometer-approved critics and Rotten Tomatoes users, along with IMDb (Internet Movie Database) Ratings"
+title: "Ha`rvest`ing Rotten Tomatoes"
+subtitle: "List of Top 50 Movies of all time as reviewed and selected by Tomatometer-approved critics and Rotten Tomatoes users, along with IMDb (Internet Movie Database) Ratings"
 description: Movie related information was scraped from <a href="https://editorial.rottentomatoes.com/guide/best-movies-of-all-time/">Rotten Tomatoes</a> and <a href="https://www.imdb.com/chart/top/">IMDb</a> respectively using <a href="https://github.com/tidyverse/rvest/">rvest</a>.
 author: "Sukalpo Saha"
 date: today
 format:
   html:
-    theme: slate
+    theme: cosmo
     smooth-scroll: true
     code-fold: true
     code-tools:
@@ -38,7 +38,7 @@ editor: visual
 }
 
 p.subtitle {
-    color: #f5ca09;
+    color: #20794d;
 }
 
 #title-block-header.quarto-title-block.default .quarto-title-meta {
@@ -47,10 +47,6 @@ p.subtitle {
 
 #title-block-header > div.quarto-title-banner.page-columns.page-full > div > div > div > a {
     color: coral !important;
-}
-
-#quarto-code-tools-source > i {
-    color: #eb2727 !important;
 }
 
 code {
@@ -82,11 +78,10 @@ get_img_src <- function(pg) {
     map_chr(\(x) x[["src"]])
 }
 ### Extract movie info from Rotten Tomatoes
-get_movie_info <- function(pg, tag, str_remove) {
+get_movie_info <- function(pg, tag) {
   pg |>
     html_elements(tag) |>
-    html_text2() |>
-    str_remove(pattern = str_remove)
+    html_text2()
 }
 ### IMDb movie ratings
 get_imdb_movies <- function(pg) {
@@ -121,33 +116,41 @@ html <- map(c(rot, imdb), read_html) |>
   set_names("tomato", "imdb")
 
 ### clean scraped data
-rt <- html$tomato |>
-  html_elements("table") |>
-  html_table() |>
-  bind_rows() |>
-  slice_head(n = 50) |>
-  mutate(across(everything(), \(x) str_squish(x))) |>
-  select("rank" = "X1", "X2") |>
-  separate_wider_delim(X2, delim = "% ", names = c("score", "name")) |>
-  separate_wider_delim(name, delim = " (", names = c("name", "year")) |>
-  mutate(year = str_extract(year, "\\d+")) |>
-  mutate(across(c(1, 2, 4), as.numeric)) |>
-  ### add IMDb top 250 to Rotten Tomatoes Top 100
-  left_join(get_imdb_movies(html$imdb), by = "name")
+rank <- 1:50
+logo <- get_img_src(html$tomato)
+movie <- get_movie_info(html$tomato, "div.article_movie_title > div > h2 > a")
+year <- get_movie_info(html$tomato, "span.subtle.start-year")
+score <- get_movie_info(html$tomato, "span.tMeterScore")
+director <- get_movie_info(html$tomato, "div.info.director")
+cast <- get_movie_info(html$tomato, "div.info.cast")
+cc <- get_movie_info(html$tomato, "div.info.critics-consensus")
 
-### add rotten tomatoes movie posters and movie details
-rt <- rt |>
-  mutate(logo = get_img_src(html$tomato), .after = "rank") |>
-  mutate(
-    dir = get_movie_info(html$tomato, "div.info.director", "Directed By: "),
-    cast = get_movie_info(html$tomato, "div.info.cast", "Starring: "),
-    cc = get_movie_info(
-      html$tomato,
-      "div.info.critics-consensus",
-      "Critics Consensus: "
-    ),
-    .after = "name"
+rt <- bind_cols(set_names(
+  list(rank, logo, movie, year, score, director, cast, cc),
+  c(
+    "rank",
+    "logo",
+    "name",
+    "year",
+    "score",
+    "director",
+    "cast",
+    "consensus"
   )
+)) |>
+  left_join(get_imdb_movies(html$imdb), by = "name") |>
+  unite("name", c("name", "year"), sep = " ") |>
+  mutate(
+    name = paste0("<h3>", name, "</h3>"),
+    director = str_replace(director, "Directed By: ", "<b>Directed By:</b><br>"),
+    cast = str_replace(cast, "Starring: ", "<b>Starring:</b><br>"),
+    consensus = str_replace(
+      consensus, "Critics Consensus: ", "<b>Critics Consensus:</b><br>"
+    ),
+    score = paste0("![", score, "](apple.png 'Critic Score:\nMovie’s Tomatometer Rating with assistance from its Audience Score to represent sentiment from both sides.\nOther factors considered in calculating this score are number of critics reviews, number of audience score votes, and its year of release.')<br>", score, "</br>"),
+    imdb1 = paste0("![", imdb, "](imdb.png)")
+  )
+
 ```
 
 ```{r}
@@ -160,27 +163,30 @@ rt |>
   ) |>
   text_transform(
     locations = cells_body(columns = logo),
-    fn = \(x) web_image(url = x, height = 150)
+    fn = \(x) web_image(url = x, height = 300)
   ) |>
-  fmt_pct_extra(columns = score) |>
   text_transform(
     locations = cells_body(columns = imdb),
     fn = \(x) {
       map(suppressWarnings(as.numeric(x)), \(rating) {
         if (is.na(rating)) {
-          return(html("Outside IMDb Top 250"))
+          return(html("Not Featured in Top 250"))
         }
         rounded_rating <- floor(rating + 0.5)
-        label <- sprintf("%s out of %s", rating, 10)
+        label <- sprintf(
+          "%s out of %s (Rounded to nearest integer)",
+          rating,
+          10
+        )
         stars <- map(seq_len(10), \(i) {
           fontawesome::fa(
-              "star",
-              fill = "orange",
-              width = "14px",
-              height = "14px",
-              title = label,
-              prefer_type = if_else(i <= rounded_rating, "solid", "regular")
-            )
+            "star",
+            fill = "orange",
+            width = "14px",
+            height = "14px",
+            title = label,
+            prefer_type = if_else(i <= rounded_rating, "solid", "regular")
+          )
         })
         htmltools::div(
           title = label,
@@ -195,83 +201,61 @@ rt |>
     }
   ) |>
   cols_align(align = "left", columns = imdb) |>
+  fmt_markdown(columns = c(name:consensus, imdb1)) |>
+  cols_merge(
+    columns = name:consensus,
+    pattern = "{1}<br>{2}<br>{5}<br>{4}<br>{3}"
+  ) |>
+  cols_move("imdb", after = "imdb1") |>
   cols_width(
-    rank ~ px(25),
-    c("logo", "name", "dir", "cast") ~ px(180),
-    cc ~ px(250),
+    name ~ px(500),
     imdb ~ px(200),
-    everything() ~ px(100)
+    logo ~ px(250),
+    everything() ~ px(55)
   ) |>
-  cols_move(
-    "name",
-    after = "logo"
-  ) |>
-  cols_move_to_end(c("score", "imdb")) |>
   cols_label(
     "rank" ~ "",
     "logo" ~ "",
-    "name" ~ "Movie",
-    "score" ~ html(as.character(htmltools::tags$abbr(
-      style = "cursor: pointer; background-color: #eb2727;",
-      title = "Critic Score: Movie’s Tomatometer Rating with assistance from its Audience Score to represent sentiment from both sides. Other factors considered in calculating this score are: Number of Critics Reviews, Number of Audience Score votes, and its year of release.",
-    html(local_image(filename = "apple.png", height = 25))
-    ))),
-    "dir" ~ "Directed By",
-    "cast" ~ "Starring",
-    "cc" ~ "Critics Consensus",
-    "year" ~ "Year",
-    "imdb" ~ with_tooltip(
-      html(local_image(filename = "imdb.png", height = 20)),
-      "IMDb Ratings"
-    )
+    "name" ~ "",
+    starts_with("imdb") ~ ""
   ) |>
-  tab_header(
-    title = html(local_image("rtom.png", height = 100)),
-    subtitle = "Best Movies of All Time (Top 50)"
+   tab_header(
+     title = html(
+       str_replace(
+         add_text_img(
+           text = "Best Movies of All Time (Top 50)",
+           url = "rtom.png",
+           height = 100,
+           left = TRUE
+         ),
+         pattern = "vertical-align: top",
+         "vertical-align: middle"
+       )
+     )
   ) |>
   tab_style(
-    style = cell_text(
-      align = "center",
-      font = google_font("Chivo"),
-      color = "#eb2727",
-      weight = "bold"
-    ),
-    locations = cells_column_labels()
-  ) |>
-  tab_style(
-    style = cell_text(color = "#3ce906", font = "cursive", weight = 600),
-    locations = cells_title()
-  ) |>
-  tab_style(
-    style = cell_text(align = "right"),
-    locations = cells_body(columns = rank)
-  ) |>
-  tab_style(
-    style = cell_text(align = "center"),
-    locations = cells_body(columns = -rank)
-  ) |>
-  tab_style(
-    style = cell_fill(color = "#272b30"),
-    locations = cells_body()
-  ) |>
-  tab_style(
-    style = cell_fill(color = "#272b30"),
+    style = cell_text(align = "right", weight = "bold"),
     locations = cells_row_groups()
   ) |>
   tab_style(
-    style = cell_text(color = "tomato", font = google_font("Poppins")),
-    locations = cells_body(columns = - c("score", "imdb"))
+    style = cell_text(
+      color = "#ceed2a",
+      font = "cursive",
+      weight = 600,
+      v_align = "middle"
+    ),
+    locations = cells_title()
   ) |>
   tab_style(
-    style = cell_text(color = "#65b741", font = google_font("Poppins")),
-    locations = cells_body(columns = score)
+    style = cell_text(font = google_font("Poppins")),
+    locations = cells_body()
   ) |>
   tab_style(
-    style = cell_text(color = "orange", font = google_font("Poppins")),
-    locations = cells_body(columns = imdb)
-  ) |>
-  tab_style(
-    style = cell_text(color = "#f5ca09", font = google_font("Poppins")),
+    style = cell_text(
+      color = "#20794d",
+      font = google_font("Poppins"),
+      v_align = "bottom"
+    ),
     locations = cells_row_groups()
   ) |>
   tab_style(
@@ -279,40 +263,35 @@ rt |>
     locations = cells_title()
   ) |>
   tab_style(
-    style = cell_fill(color = "#f5ca09"),
+    style = cell_text(align = "center", v_align = "middle"),
     locations = cells_column_labels()
   ) |>
-  tab_style(
-    style = cell_borders(color = "#597e52", sides = "bottom", weight = px(2)),
-    locations = cells_column_labels()
-  ) |>
-  opt_table_outline(color = "#597e52") |>
   tab_options(
-    data_row.padding = px(10),
+    data_row.padding = px(20),
     table.font.size = 15,
     row_group.font.size = 18,
     row_group.border.bottom.style = "hidden",
-    row_group.border.top.color = "#597e52",
-    column_labels.font.size = 20,
-    heading.subtitle.font.size = 22,
-    heading.border.bottom.color = "#eb2727"
+    heading.subtitle.font.size = 18,
+    heading.border.bottom.color = "#20794d",
+    heading.border.bottom.width = "2px",
+    column_labels.border.bottom.style = "hidden"
   ) |>
   opt_css(
     css = "
-    .gt_table {
-      width: max-content !important;
-    }
     .gt_title {
        padding-bottom: 0px !important;
     }
     .gt_subtitle {
        padding-top: 0px !important;
     }
-    abbr > img {
-       vertical-align: -0.3em !important;
+    .gt_group_heading {
+       padding-top: 4px !important;
+       padding-bottom: 0px !important;
     }
-    tr > td > img {
-       border-radius: 8px !important;
+    .gt_row {
+      border-bottom-color: #20794d !important;
+      border-bottom-width: 2px !important;
+      border-bottom-style: solid !important;
     }
     "
   )
