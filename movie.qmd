@@ -39,6 +39,7 @@ editor: visual
 
 p.subtitle {
     color: #20794d;
+    font-weight: bold;
 }
 
 #title-block-header.quarto-title-block.default .quarto-title-meta {
@@ -147,8 +148,11 @@ rt <- bind_cols(set_names(
     consensus = str_replace(
       consensus, "Critics Consensus: ", "<b>Critics Consensus:</b><br>"
     ),
-    score = paste0("![", score, "](apple.png 'Critic Score:\nMovie’s Tomatometer Rating with assistance from its Audience Score to represent sentiment from both sides.\nOther factors considered in calculating this score are number of critics reviews, number of audience score votes, and its year of release.')<br>", score, "</br>"),
-    imdb1 = paste0("![", imdb, "](imdb.png)")
+    score = paste0("![", score, "](apple.png 'Critic Score: Movie’s Tomatometer Rating with assistance from its Audience Score to represent sentiment from both sides.\nOther factors considered in calculating this score are number of critics reviews, number of audience score votes, and its year of release.')<br>", score, "</br>"),
+    imdb = if_else(
+      !is.na(imdb), paste0("![star](star.svg) <b>", imdb, "</b>"), "Outside Top 250"
+    ),
+    imdb1 = paste0("![imdb](imdb.png)")
   )
 
 ```
@@ -165,43 +169,8 @@ rt |>
     locations = cells_body(columns = logo),
     fn = \(x) web_image(url = x, height = 300)
   ) |>
-  text_transform(
-    locations = cells_body(columns = imdb),
-    fn = \(x) {
-      map(suppressWarnings(as.numeric(x)), \(rating) {
-        if (is.na(rating)) {
-          return(html("Not Featured in Top 250"))
-        }
-        rounded_rating <- floor(rating + 0.5)
-        label <- sprintf(
-          "%s out of %s (Rounded to nearest integer)",
-          rating,
-          10
-        )
-        stars <- map(seq_len(10), \(i) {
-          fontawesome::fa(
-            "star",
-            fill = "orange",
-            width = "14px",
-            height = "14px",
-            title = label,
-            prefer_type = if_else(i <= rounded_rating, "solid", "regular")
-          )
-        })
-        htmltools::div(
-          title = label,
-          "aria-label" = label,
-          role = "img",
-          stars,
-          style = "padding:0px"
-        ) |>
-          as.character() |>
-          html()
-      })
-    }
-  ) |>
-  cols_align(align = "left", columns = imdb) |>
-  fmt_markdown(columns = c(name:consensus, imdb1)) |>
+  cols_align(align = "center", columns = imdb) |>
+  fmt_markdown(columns = c(name:consensus, contains("imdb"))) |>
   cols_merge(
     columns = name:consensus,
     pattern = "{1}<br>{2}<br>{5}<br>{4}<br>{3}"
@@ -209,15 +178,12 @@ rt |>
   cols_move("imdb", after = "imdb1") |>
   cols_width(
     name ~ px(500),
-    imdb ~ px(200),
-    logo ~ px(250),
+    logo ~ px(225),
+    imdb ~ px(75),
     everything() ~ px(55)
   ) |>
-  cols_label(
-    "rank" ~ "",
-    "logo" ~ "",
-    "name" ~ "",
-    starts_with("imdb") ~ ""
+  cols_label_with(
+    fn = \(x) ""
   ) |>
    tab_header(
      title = html(
@@ -240,7 +206,7 @@ rt |>
   tab_style(
     style = cell_text(
       color = "#ceed2a",
-      font = "cursive",
+      font = google_font("Cabin"),
       weight = 600,
       v_align = "middle"
     ),
@@ -253,7 +219,7 @@ rt |>
   tab_style(
     style = cell_text(
       color = "#20794d",
-      font = google_font("Poppins"),
+      font = google_font("Cabin"),
       v_align = "bottom"
     ),
     locations = cells_row_groups()
@@ -266,23 +232,24 @@ rt |>
     style = cell_text(align = "center", v_align = "middle"),
     locations = cells_column_labels()
   ) |>
+  tab_style(
+    style = cell_text(align = "right"),
+    locations = cells_body(columns = imdb1)
+  ) |>
   tab_options(
     data_row.padding = px(20),
     table.font.size = 15,
-    row_group.font.size = 18,
+    row_group.font.size = 24,
     row_group.border.bottom.style = "hidden",
-    heading.subtitle.font.size = 18,
-    heading.border.bottom.color = "#20794d",
-    heading.border.bottom.width = "2px",
+    heading.title.font.size = 24,
+    heading.border.bottom.color = "#000",
+    heading.border.bottom.width = px(3),
     column_labels.border.bottom.style = "hidden"
   ) |>
   opt_css(
     css = "
     .gt_title {
        padding-bottom: 0px !important;
-    }
-    .gt_subtitle {
-       padding-top: 0px !important;
     }
     .gt_group_heading {
        padding-top: 4px !important;
@@ -292,6 +259,13 @@ rt |>
       border-bottom-color: #20794d !important;
       border-bottom-width: 2px !important;
       border-bottom-style: solid !important;
+    }
+    img[alt=star] {
+      width: 25px;
+      vertical-align: -0.2em;
+    }
+    img[alt=imdb] {
+      width: 50px;
     }
     "
   )

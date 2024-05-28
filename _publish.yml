@@ -1,4 +1,4 @@
 - source: movie.qmd
   quarto-pub:
-    - id: a45e42ed-50b2-42c5-a723-12a569dc7210
-      url: 'https://ahasoplakus.quarto.pub/top-50-movies-by-rotten-tomatoes'
+    - id: 4c1b460e-a843-493b-a260-5fe6ade381d9
+      url: 'https://ahasoplakus.quarto.pub/harvesting-rotten-tomatoes'
