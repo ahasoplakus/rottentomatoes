@@ -236,6 +236,14 @@ rt |>
     style = cell_text(align = "right"),
     locations = cells_body(columns = imdb1)
   ) |>
+  tab_style(
+    style = cell_fill(color = "#f8f9fa"),
+    locations = cells_body(rows = seq(1, 50, 2))
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#f8f9fa"),
+    locations = cells_row_groups(groups = seq(1, 50, 2))
+  ) |>
   tab_options(
     data_row.padding = px(20),
     table.font.size = 15,
@@ -256,9 +264,12 @@ rt |>
        padding-bottom: 0px !important;
     }
     .gt_row {
-      border-bottom-color: #20794d !important;
+      border-bottom-color: #d3d3d3 !important;
       border-bottom-width: 2px !important;
       border-bottom-style: solid !important;
+    }
+    .gt_col_headings {
+      display: none !important;
     }
     img[alt=star] {
       width: 25px;
